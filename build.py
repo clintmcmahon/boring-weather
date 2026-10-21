@@ -23,20 +23,26 @@ import datetime
 import email.utils
 import html
 import pathlib
+import os
 import shutil
 import sys
+import urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parent
 STATIC = ROOT / "static"
 OUT = ROOT / "_site"
-BASE = "https://boringweather.com"
+# Public address of the site. Set SITE_URL when building (the workflow does this).
+# A project site lives under a path, for example https://user.github.io/repo, and
+# every internal link needs that path as a prefix.
+BASE = os.environ.get("SITE_URL", "https://boringweather.com").rstrip("/")
+PREFIX = urllib.parse.urlparse(BASE).path.rstrip("/")
 NAME = "Boring Weather"
 TAGLINE = "Minnesota forecast. Just the forecast."
 DEFAULT_SOURCE = "https://forecast.weather.gov/product.php?site=MPX&issuedby=MPX&product=AFD"
 MAX_PAGES = 5
 
 CSS = """
-@font-face { font-family:"VT323"; src:url(/vt323.woff2) format("woff2"); font-display:swap; }
+@font-face { font-family:"VT323"; src:url(__PREFIX__/vt323.woff2) format("woff2"); font-display:swap; }
 :root { --bg:#fff; --fg:#1a1a1a; --muted:#666; --rule:#e2e2e2; --alert:#b3261e; --link:#0b57d0; }
 @media (prefers-color-scheme: dark) {
   :root { --bg:#111; --fg:#e8e8e8; --muted:#9a9a9a; --rule:#2c2c2c; --alert:#f2b8b5; --link:#8ab4f8; }
@@ -179,8 +185,12 @@ def short_date(d):
     return f"{d.strftime('%a %b')} {d.day}"
 
 
-def url_for(d):
+def path_for(d):
     return f"/{d.year:04d}/{d.month:02d}/{d.day:02d}/"
+
+
+def url_for(d):
+    return PREFIX + path_for(d)
 
 
 def render_page(pg):
@@ -239,13 +249,13 @@ def page(title, body_html, canonical, description, pager=False):
 <title>{esc(title)}</title>
 <meta name="description" content="{esc(description)}">
 <link rel="canonical" href="{BASE}{canonical}">
-<link rel="alternate" type="application/rss+xml" title="{NAME}" href="/feed.xml">
-<link rel="preload" href="/vt323.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/style.css">
+<link rel="alternate" type="application/rss+xml" title="{NAME}" href="{PREFIX}/feed.xml">
+<link rel="preload" href="{PREFIX}/vt323.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="{PREFIX}/style.css">
 </head>
 <body>
 <header>
-<div class="name"><a href="/">{NAME}</a></div>
+<div class="name"><a href="{PREFIX}/">{NAME}</a></div>
 <p class="tag">{TAGLINE}</p>
 </header>
 <main>
@@ -253,7 +263,7 @@ def page(title, body_html, canonical, description, pager=False):
 </main>
 <footer>
 <p>{NAME} summarizes the National Weather Service Twin Cities forecast discussion. Posts are written by an AI from that text, and the source is linked on every post. For warnings and emergencies, use <a href="https://www.weather.gov/mpx/">weather.gov/mpx</a> or NOAA Weather Radio.</p>
-<p><a href="/feed.xml">RSS</a></p>
+<p><a href="{PREFIX}/feed.xml">RSS</a></p>
 </footer>
 {script}
 </body>
@@ -283,7 +293,7 @@ def feed(posts):
     items = []
     for p in posts[:20]:
         dt = datetime.datetime.combine(p["date"], datetime.time(12, 0), datetime.timezone.utc)
-        link = BASE + url_for(p["date"])
+        link = BASE + path_for(p["date"])
         items.append(
             "<item>"
             f"<title>{esc(p['title'])}</title><link>{link}</link>"
@@ -313,7 +323,7 @@ def main():
     if OUT.exists():
         shutil.rmtree(OUT)
     OUT.mkdir()
-    write(OUT / "style.css", CSS.strip() + "\n")
+    write(OUT / "style.css", CSS.replace("__PREFIX__", PREFIX).strip() + "\n")
     if STATIC.exists():
         for f in STATIC.iterdir():
             if f.is_file():
@@ -322,8 +332,8 @@ def main():
     for p in posts:
         title = f"Minnesota forecast for {long_date(p['date'])} | {NAME}"
         write(
-            OUT / url_for(p["date"]).strip("/") / "index.html",
-            page(title, render_screen(p), url_for(p["date"]), p["title"], pager=True),
+            OUT / path_for(p["date"]).strip("/") / "index.html",
+            page(title, render_screen(p), path_for(p["date"]), p["title"], pager=True),
         )
 
     if posts:
@@ -349,7 +359,7 @@ def main():
     write(OUT / "feed.xml", feed(posts))
     write(
         OUT / "404.html",
-        page(f"Not found | {NAME}", '<h1 class="post-title">Not found</h1><p><a href="/">Go to today\'s forecast.</a></p>', "/404.html", "Page not found"),
+        page(f"Not found | {NAME}", f'<h1 class="post-title">Not found</h1><p><a href="{PREFIX}/">Go to today\'s forecast.</a></p>', "/404.html", "Page not found"),
     )
     print(f"Built {len(posts)} post(s) into {OUT}")
 

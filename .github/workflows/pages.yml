@@ -23,6 +23,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: python build.py
+        env:
+          # Change this to the custom domain (and add static/CNAME) when one is ready.
+          SITE_URL: https://clintmcmahon.github.io/boring-weather
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site

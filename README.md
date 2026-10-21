@@ -1,6 +1,8 @@
 # Boring Weather
 
-Minnesota forecast. Just the forecast. Live at https://boringweather.com.
+Minnesota forecast. Just the forecast. Live at https://clintmcmahon.github.io/boring-weather/.
+
+The site address comes from `SITE_URL` in `.github/workflows/pages.yml`. To move to a custom domain, set `SITE_URL` to it, add the domain as `static/CNAME`, and configure it in the repo's Pages settings.
 
 A static site built from `posts/YYYY-MM-DD.md` by `build.py` (Python standard library only). Pushing to `main` builds and deploys to GitHub Pages through `.github/workflows/pages.yml`.
 
